@@ -1,7 +1,8 @@
+from crypt import methods
 from flask import Flask, jsonify
 from controllers.auth_controller import LoginRouteHandler, RegisterRouteHandler
 from controllers.home_controller import home_route_handler
-from controllers.publications_controller import PublicationsRouteHandler
+from controllers.publications_controller import PublicationRouteHandler, PublicationsRouteHandler
 from controllers.users_controller import UsersRouteHandler, UserRouteHandler
 from errors.not_found import NotFound
 from errors.validation_error import ValidationError
@@ -32,5 +33,8 @@ app.add_url_rule('/api/login', view_func=LoginRouteHandler.as_view('login_route_
 
 app.add_url_rule('/api/publications', view_func=PublicationsRouteHandler.as_view('publications_route_handler'), 
 methods = ['POST', 'GET'])
+
+app.add_url_rule('/api/publication/<_id>', view_func=PublicationRouteHandler.as_view('publication_route_handler'), 
+methods = ['GET', 'DELETE', 'PATCH'])
 
 app.run(debug=True)

@@ -105,6 +105,32 @@ class Publication:
             _id = str(_id)
         self._id = _id
 
+    def update(self):
+        _filter = {'_id': ObjectId(self._id)}
+        _update = {
+            '$set': {'title': self.title, 'description': self.description, 'visibility': self.visibility}
+        }
+        db.publications.update_one(_filter, _update)
+
+    @staticmethod
+    def delete_by_id(_id):
+        result = db.publications.delete_one({'_id': ObjectId(_id)})
+        if result.deleted_count == 0:
+            raise NotFound(message = 'publication not found')
+    @staticmethod
+    def delete_by_id_and_owner(_id, owner):
+        result = db.publications.delete_one({'_id': ObjectId(_id), 'owner': ObjectId(owner['sub'])})
+        if result.deleted_count == 0:
+            raise NotFound(message = 'publication not found')
+
+    @staticmethod
+    def get_by_id(_id):
+        publication_dictionary = db.publications.find_one({'_id': ObjectId(_id)})
+        if publication_dictionary is None:
+            raise NotFound(message = "publication not found")
+        publication = Publication._from_json(publication_dictionary)
+        return publication
+
     def to_json(self):
         owner = self.owner
         if owner is not None:
@@ -148,33 +174,63 @@ class Publication:
         }
         publications_cursor = db.publications.find(_filter)
         publications_list = list(publications_cursor)
-        publications = Publication._create_list_of_publications(publications_list)
+        publications = Publication._list_from_json(publications_list)
         return publications
+
+    @staticmethod
+    def get_logged_in_users_and_public_publication(_id, logged_in_user):
+        _filter = {
+            '_id': ObjectId(_id),
+            '$or': [
+                {'owner': ObjectId(logged_in_user['sub'])},
+                {'visibility': {'$in': [1,2]}}
+            ]
+        }
+        publication = db.publications.find_one(_filter)
+        if publication is None:
+            raise NotFound(message = "publication not found")
+        
+        publication_object = Publication._from_json(publication)
+        return publication_object
 
     @staticmethod
     def get_by_visibility(visibility = 2):
         publications_cursor = db.publications.find({'visibility':visibility})
         publications_list = list(publications_cursor)
-        publications = Publication._create_list_of_publications(publications_list)
+        publications = Publication._list_from_json(publications_list)
         return publications
+
+    @staticmethod
+    def get_one_by_id_visibility(_id, visibility = 2):
+        publication = db.publications.find_one({'_id':ObjectId(_id), 'visibility':visibility})
+        if publication is None:
+            raise NotFound(message = "publication not found")
+        return Publication._from_json(publication)
 
     @staticmethod
     def get_all():
         publications_cursor = db.publications.find()
         publications_list = list(publications_cursor)
-        publications = Publication._create_list_of_publications(publications_list)
+        publications = Publication._list_from_json(publications_list)
         return publications
         
+
     @staticmethod
-    def _create_list_of_publications(list_of_dictionaries):
-        publications = []
-        for publication in list_of_dictionaries:
-            publication_object = Publication(
+    def _from_json(publication):
+        publication_object = Publication(
                 publication['title'],
                 publication['description'],
                 publication['url'],
                 _id = publication['_id'],
                 owner = publication.get('owner', None),
                 visibility = publication.get('visibility', 2))
+        return publication_object
+
+
+    @staticmethod
+    def _list_from_json(list_of_dictionaries):
+        publications = []
+        for publication in list_of_dictionaries:
+            publication_object = Publication._from_json(publication)
             publications.append(publication_object)
         return publications

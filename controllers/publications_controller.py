@@ -1,5 +1,6 @@
 from flask.views import MethodView
 from flask import jsonify, request
+from errors.not_found import NotFound
 from models import Publication
 from validators.validate_publications import validate_add_publication
 from flask_jwt_extended import jwt_required, get_jwt
@@ -26,6 +27,7 @@ class PublicationsRouteHandler(MethodView):
 
     @jwt_required(optional = True)
     def get(self):
+        publications = []
         logged_in_user = get_jwt()
         if not logged_in_user:
             # haetaan vain publicationit joissa visibility 2
@@ -37,3 +39,42 @@ class PublicationsRouteHandler(MethodView):
                 # julkaisut joissa visibility 1 tai 2
                 publications = Publication.get_logged_in_users_and_public_publications(logged_in_user)
         return jsonify(publications = Publication.list_to_json(publications))
+
+class PublicationRouteHandler(MethodView):
+    @jwt_required(optional = True)
+    def get(self, _id):
+        logged_in_user = get_jwt()
+        if logged_in_user:
+            if logged_in_user['role'] == 'admin':
+                publication = Publication.get_by_id(_id)
+            elif logged_in_user['role'] == 'user':
+                publication = Publication.get_logged_in_users_and_public_publication(_id, logged_in_user)   
+        else:
+            publication = Publication.get_one_by_id_visibility(_id)
+        return jsonify(publication=publication.to_json())
+
+    @jwt_required(optional = False)
+    def delete(self, _id):
+        logged_in_user = get_jwt()
+        if logged_in_user['role'] == 'admin':
+            Publication.delete_by_id(_id)
+        elif logged_in_user['role'] == 'user':
+            Publication.delete_by_id_and_owner(_id, logged_in_user)
+
+        return ""
+
+
+    @jwt_required(optional = False)
+    def patch(self, _id):
+        logged_in_user = get_jwt()
+        publication = Publication.get_by_id(_id)
+        if logged_in_user['role'] == 'user':
+            if publication.owner is None or str(publication.owner) != logged_in_user['sub']:
+                raise NotFound(message = 'publication not found')
+        request_body = request.get_json()
+        publication.title = request_body.get('title', publication.title)
+        publication.description = request_body.get('description', publication.description)
+        publication.visibility = request_body.get('visibility', publication.visibility)
+
+        publication.update()
+        return jsonify(publication=publication.to_json())
