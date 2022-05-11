@@ -91,24 +91,31 @@ class Publication:
     title, 
     description, 
     url, 
-    owner = None, 
+    owner = None,
+    visibility = 2, 
     likes = [],
     _id = None):
         self.title = title
         self.description = description
         self.url = url
         self.owner = owner
+        self.visibility = visibility
         self.likes = likes
         if _id is not None:
             _id = str(_id)
         self._id = _id
 
     def to_json(self):
+        owner = self.owner
+        if owner is not None:
+            owner = str(owner)
         return {
             '_id': str(self._id),
             'title': self.title,
             'description': self.description,
-            'url': self.url
+            'url': self.url,
+            'owner': owner,
+            'visibility': self.visibility
         }
 
     @staticmethod
@@ -123,22 +130,51 @@ class Publication:
         result = db.publications.insert_one({
             'title': self.title,
             'description': self.description,
-            'url': self.url
+            'url': self.url,
+            'owner': ObjectId(self.owner),
+            'visibility': self.visibility
         })
 
         self._id = str(result.inserted_id)
+
+
+    @staticmethod
+    def get_logged_in_users_and_public_publications(logged_in_user):
+        _filter = {
+            '$or': [
+                {'owner': ObjectId(logged_in_user['sub'])},
+                {'visibility': {'$in': [1,2]}}
+            ]
+        }
+        publications_cursor = db.publications.find(_filter)
+        publications_list = list(publications_cursor)
+        publications = Publication._create_list_of_publications(publications_list)
+        return publications
+
+    @staticmethod
+    def get_by_visibility(visibility = 2):
+        publications_cursor = db.publications.find({'visibility':visibility})
+        publications_list = list(publications_cursor)
+        publications = Publication._create_list_of_publications(publications_list)
+        return publications
 
     @staticmethod
     def get_all():
         publications_cursor = db.publications.find()
         publications_list = list(publications_cursor)
+        publications = Publication._create_list_of_publications(publications_list)
+        return publications
+        
+    @staticmethod
+    def _create_list_of_publications(list_of_dictionaries):
         publications = []
-        for publication in publications_list:
+        for publication in list_of_dictionaries:
             publication_object = Publication(
                 publication['title'],
                 publication['description'],
                 publication['url'],
-                _id = publication['_id'])
+                _id = publication['_id'],
+                owner = publication.get('owner', None),
+                visibility = publication.get('visibility', 2))
             publications.append(publication_object)
         return publications
-        
