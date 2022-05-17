@@ -45,11 +45,21 @@ class User:
             
     }
 
+    def update_password(self):
+        _filter = {'_id': ObjectId(self._id)}
+        _update = {
+        '$set': {'password': self.password}
+        }
+        db.users.update_one(_filter, _update)
+
     def update(self):
         _filter = {'_id': ObjectId(self._id)}
         _update = {
         '$set': {'username': self.username}
         }
+        user = db.users.find_one({'username': self.username, '_id': {'$ne': ObjectId(self._id)}})
+        if user is not None:
+            raise ValidationError(message='username must be unique')
         db.users.update_one(_filter, _update)
 
     @staticmethod
