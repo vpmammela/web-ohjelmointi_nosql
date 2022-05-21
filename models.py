@@ -19,6 +19,9 @@ class User:
             _id = str(_id)
         self._id = _id
 
+    def get_id(self):
+        return self._id
+
     @staticmethod
     def get_all():
         users_cursor = db.users.find()
@@ -101,19 +104,42 @@ class Publication:
     title, 
     description, 
     url, 
+    share_link = None,
+    shares = 0,
     owner = None,
     visibility = 2, 
-    likes = [],
+    likes = None,
     _id = None):
+        if likes is None:
+            likes = []
+        self.likes = likes
         self.title = title
         self.description = description
         self.url = url
+        self.share_link = share_link
+        self.shares = shares
         self.owner = owner
         self.visibility = visibility
-        self.likes = likes
         if _id is not None:
             _id = str(_id)
         self._id = _id
+
+
+
+    def like(self):
+        _filter = {'_id': ObjectId(self._id)}
+        _update = {
+            '$set': {'likes': self.likes}
+        }
+        db.publications.update_one(_filter, _update)
+
+    def share(self):
+        _filter = {'_id': ObjectId(self._id)}
+        _update = {
+            '$set': {'shares': self.shares, 'share_link': self.share_link}
+        }
+        db.publications.update_one(_filter, _update)
+
 
     def update(self):
         _filter = {'_id': ObjectId(self._id)}
@@ -145,13 +171,21 @@ class Publication:
         owner = self.owner
         if owner is not None:
             owner = str(owner)
+
+        likes = []
+        for user_id in self.likes:
+            likes.append(str(user_id))
         return {
             '_id': str(self._id),
             'title': self.title,
             'description': self.description,
             'url': self.url,
             'owner': owner,
-            'visibility': self.visibility
+            'visibility': self.visibility,
+            'likes': likes,
+            'share_link': self.share_link,
+            'shares': self.shares
+            # 'likes': [str(user_id) for user_id in self.likes] 
         }
 
     @staticmethod
@@ -231,9 +265,12 @@ class Publication:
                 publication['title'],
                 publication['description'],
                 publication['url'],
+                shares = publication.get('shares', 0),
+                share_link=publication.get('share_link', None),
                 _id = publication['_id'],
                 owner = publication.get('owner', None),
-                visibility = publication.get('visibility', 2))
+                visibility = publication.get('visibility', 2),
+                likes=publication.get('likes', []))
         return publication_object
 
 

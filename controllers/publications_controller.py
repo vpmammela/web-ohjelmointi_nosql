@@ -1,9 +1,13 @@
+
+import random
+import string
 from flask.views import MethodView
 from flask import jsonify, request
 from errors.not_found import NotFound
 from models import Publication
 from validators.validate_publications import validate_add_publication
 from flask_jwt_extended import jwt_required, get_jwt
+from bson.objectid import ObjectId
 
 class PublicationsRouteHandler(MethodView):
     @validate_add_publication
@@ -77,4 +81,38 @@ class PublicationRouteHandler(MethodView):
         publication.visibility = request_body.get('visibility', publication.visibility)
 
         publication.update()
+        return jsonify(publication=publication.to_json())
+
+
+class LikePublicationRouteHandler(MethodView):
+    @jwt_required(optional=False)
+    def patch(self, _id):
+        logged_in_user = get_jwt()
+        publication = Publication.get_by_id(_id)
+        found_index = -1 # oletusarvo = -1 koska arrayt / listat alkavat 0. 
+                         # -1 tarkoittaa siis, ettei käyttäjää oli likes-listassa
+        for index, user_object_id in enumerate(publication.likes):
+            if str(user_object_id) == logged_in_user['sub']:
+                found_index = index
+                break
+
+        if found_index != -1:
+            del publication.likes[found_index]
+        else:
+            publication.likes.append(ObjectId(logged_in_user['sub']))
+
+        publication.like()
+        return jsonify(publication=publication.to_json())
+
+
+class SharePublicationRouteHandler(MethodView):
+    @jwt_required(optional=False)
+    def patch(self, _id):
+        publication = Publication.get_by_id(_id)
+        if publication.share_link is None:
+            letters = string.ascii_lowercase
+            publication.share_link = ''.join(random.choice(letters) for _ in range(8))
+        publication.shares += 1
+
+        publication.share()
         return jsonify(publication=publication.to_json())
