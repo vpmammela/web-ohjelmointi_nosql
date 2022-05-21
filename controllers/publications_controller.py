@@ -4,7 +4,9 @@ import string
 from flask.views import MethodView
 from flask import jsonify, request
 from errors.not_found import NotFound
-from models import Publication
+from errors.validation_error import ValidationError
+from models import Publication, Comment
+from validators.auth import validate_logged_in_user
 from validators.validate_publications import validate_add_publication
 from flask_jwt_extended import jwt_required, get_jwt
 from bson.objectid import ObjectId
@@ -58,6 +60,7 @@ class PublicationRouteHandler(MethodView):
         return jsonify(publication=publication.to_json())
 
     @jwt_required(optional = False)
+    @validate_logged_in_user
     def delete(self, _id):
         logged_in_user = get_jwt()
         if logged_in_user['role'] == 'admin':
@@ -69,6 +72,7 @@ class PublicationRouteHandler(MethodView):
 
 
     @jwt_required(optional = False)
+    @validate_logged_in_user
     def patch(self, _id):
         logged_in_user = get_jwt()
         publication = Publication.get_by_id(_id)
@@ -86,6 +90,7 @@ class PublicationRouteHandler(MethodView):
 
 class LikePublicationRouteHandler(MethodView):
     @jwt_required(optional=False)
+    @validate_logged_in_user
     def patch(self, _id):
         logged_in_user = get_jwt()
         publication = Publication.get_by_id(_id)
@@ -107,6 +112,7 @@ class LikePublicationRouteHandler(MethodView):
 
 class SharePublicationRouteHandler(MethodView):
     @jwt_required(optional=False)
+    @validate_logged_in_user
     def patch(self, _id):
         publication = Publication.get_by_id(_id)
         if publication.share_link is None:
@@ -116,3 +122,16 @@ class SharePublicationRouteHandler(MethodView):
 
         publication.share()
         return jsonify(publication=publication.to_json())
+
+
+class PublicationCommentsRouteHandler(MethodView):
+    @jwt_required(optional=False)
+    @validate_logged_in_user
+    def post(self, _id):
+        request_body = request.get_json()
+        if request_body and 'body' in request_body:
+            logged_in_user = get_jwt()
+            comment = Comment(request_body['body'], logged_in_user['sub'], _id)
+            comment.create()
+            return jsonify(comment=comment.to_json())
+        raise ValidationError(message='body is required')

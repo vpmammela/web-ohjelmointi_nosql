@@ -10,6 +10,28 @@ client = pymongo.MongoClient(Config.CONNECTION_STRING,
 server_api=ServerApi('1'))
 db = client.flask_db
 
+
+class Comment:
+    def __init__(self, body, owner, publication, _id=None):
+        self.body = body
+        self.owner = str(owner)
+        self.publication = str(publication)
+        if _id is not None:
+            _id = str(_id)
+        self._id = _id
+
+    def to_json(self):
+        return {
+            '_id': str(self._id),
+            'body': self.body,
+            'owner': str(self.owner),
+            'publication': str(self.publication)
+        }
+
+    def create(self):
+        result = db.comments.insert_one({'body': self.body, 'owner': ObjectId(self.owner), 'publication': ObjectId(self.publication)})
+        self._id = str(result.inserted_id)
+
 class User:
     def __init__(self, username, password = None, role = 'user', _id = None):
         self.username = username

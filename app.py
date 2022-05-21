@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from controllers.auth_controller import LoginRouteHandler, RegisterRouteHandler, AccountRouteHandler, AccountPasswordRouteHandler
 from controllers.home_controller import home_route_handler
-from controllers.publications_controller import LikePublicationRouteHandler, PublicationRouteHandler, PublicationsRouteHandler, SharePublicationRouteHandler
+from controllers.publications_controller import LikePublicationRouteHandler, PublicationCommentsRouteHandler, PublicationRouteHandler, PublicationsRouteHandler, SharePublicationRouteHandler
 from controllers.users_controller import UsersRouteHandler, UserRouteHandler
 from errors.not_found import NotFound
 from errors.validation_error import ValidationError
@@ -41,6 +41,9 @@ methods=['PATCH'])
 
 app.add_url_rule('/api/publications/<_id>/share', view_func=SharePublicationRouteHandler.as_view('share_publication_route_handler'),
 methods=['PATCH'])
+
+app.add_url_rule('/api/publications/<_id>/comments', view_func=PublicationCommentsRouteHandler.as_view('publication_comments_route_handler'),
+methods=['POST'])
 
 app.add_url_rule('/api/account', view_func=AccountRouteHandler.as_view('account_route_handler'),
 methods = ['GET', 'PATCH'])
