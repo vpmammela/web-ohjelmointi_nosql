@@ -9,3 +9,10 @@ def validate_add_publication(publications_route_handler):
             return publications_route_handler(*args, **kwargs)
         raise ValidationError(message='title, decription and url are required')
     return validate_add_publication_wrapper
+
+
+""" def validate_comments_route_handler(comments_route_handler):
+    def validate_comments_route_handler_wrapper(*args, **kwargs):
+        if request.method == 'GET':
+            return comments_route_handler(*args, **kwargs)
+        return validate_comments_route_handler_wrapper """

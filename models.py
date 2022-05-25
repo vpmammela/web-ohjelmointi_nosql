@@ -20,6 +20,36 @@ class Comment:
             _id = str(_id)
         self._id = _id
 
+    @staticmethod
+    def update_by_id(_comment_id, body):
+        _filter = {'_id': ObjectId(_comment_id)}
+        _update = {'$set': {'body': body}}
+        db.comments.update_one(_filter, _update)
+        comment = db.comments.find_one({'_id': ObjectId(_comment_id)})
+        return Comment(body, comment['owner'], comment['publication'], _id=comment['_id'])
+
+
+    @staticmethod
+    def get_all_by_publication(_publication_id):
+        comments = []
+        comments_cursor = db.comments.find({'publication': ObjectId(_publication_id)})
+        for comment in comments_cursor:
+            comments.append(Comment(comment['body'], comment['owner'], comment['publication'], _id=comment['_id']))
+
+        return comments
+
+    @staticmethod
+    def delete_by_id(comment_id):
+        db.comments.delete_one({'_id': ObjectId(comment_id)})
+
+    @staticmethod
+    def list_to_json(comments):
+        comments_in_json = []
+        for comment in comments:
+            comments_in_json.append(comment.to_json())
+        return comments_in_json
+    
+
     def to_json(self):
         return {
             '_id': str(self._id),
@@ -28,18 +58,39 @@ class Comment:
             'publication': str(self.publication)
         }
 
+    @staticmethod
+    def _from_json(publication):
+        publication_object = Publication(
+                publication['comments']
+        )
+        return publication_object
+
     def create(self):
         result = db.comments.insert_one({'body': self.body, 'owner': ObjectId(self.owner), 'publication': ObjectId(self.publication)})
         self._id = str(result.inserted_id)
 
+    @staticmethod
+    def get_comment_by_publication_id_and_comment_id(publication_id, comment_id):
+        comment = db.comments.find_one({'publication': ObjectId(publication_id), '_id': ObjectId(comment_id)})
+        return Comment(comment['body'], comment['owner'], comment['publication'])
+
+    def update(self):
+        # kirjoita tähän koodi, joka tallentaa päivitetyn kommentin selfin kautta db.comments.update_one-funktiota käyttäen
+        pass
+    
+    def delete(self):
+        # kirjoita tähän koodi, joka poistaa valitun kommentin
+        pass
+
 class User:
-    def __init__(self, username, password = None, role = 'user', _id = None):
+    def __init__(self, username, password = None, role = 'user', _id = None, profile_picture = None):
         self.username = username
         self.password = password
         self.role = role
         if _id is not None:
             _id = str(_id)
         self._id = _id
+        self.profile_picture = profile_picture
 
     def get_id(self):
         return self._id
@@ -67,6 +118,7 @@ class User:
             '_id': str(self._id),
             'username': self.username,
             'role': self.role,
+            'profile_picture': self.profile_picture
             
     }
 
@@ -146,7 +198,12 @@ class Publication:
             _id = str(_id)
         self._id = _id
 
-
+    def comments(self):
+        _filter = {'_id': ObjectId(self._id)}
+        _update = {
+            '$set': {'comments': self.comments}
+        }
+        db.publications.update_one(_filter, _update)
 
     def like(self):
         _filter = {'_id': ObjectId(self._id)}

@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from flask.views import MethodView
 from passlib.hash import pbkdf2_sha256 as sha256
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, create_refresh_token
 from errors.not_found import NotFound
 from flask_jwt_extended import jwt_required, get_jwt
 from models import User
@@ -53,12 +53,22 @@ class RegisterRouteHandler(MethodView):
 
 class LoginRouteHandler(MethodView):
     def post(self):
-        request_body = request.get_json()
-        # haetaan käyttäjä käyttäjänimellä
-        user = User.get_by_username(request_body['username'])
-        # tarkistetaan onko salasana oikein
-        if sha256.verify(request_body['password'], user.password):
-            access_token = create_access_token(user.get_id(), additional_claims={'username': user.username, 'role': user.role})
-            return jsonify(access_token = access_token)
-        raise NotFound(message = 'user not found')
+        if request.method == 'POST':
+            request_body = request.get_json()
+            # haetaan käyttäjä käyttäjänimellä
+            user = User.get_by_username(request_body['username'])
+            # tarkistetaan onko salasana oikein
+            if sha256.verify(request_body['password'], user.password):
+                access_token = create_access_token(user.get_id(), additional_claims={'username': user.username, 'role': user.role})
+                refresh_token = create_refresh_token(user.get_id(), additional_claims={'username': user.username, 'role': user.role})
+                return jsonify(access_token = access_token, refresh_token = refresh_token)
+            raise NotFound(message = 'user not found')
 
+
+    @jwt_required(refresh=True)
+    def patch(self):
+        request_body = request.get_json()
+        user = User.get_by_username(request_body['username'])
+        access_token = create_access_token(user.get_id(), additional_claims={'username': user.username, 'role': user.role})
+        return jsonify(access_token = access_token)
+        
