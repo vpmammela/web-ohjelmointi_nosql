@@ -6,7 +6,7 @@ from flask import jsonify, request
 from errors.not_found import NotFound
 from errors.validation_error import ValidationError
 from models import Publication, Comment
-from validators.auth import validate_logged_in_user
+from validators.auth import validate_logged_in_admin, validate_logged_in_user
 from validators.validate_publications import validate_add_publication
 from flask_jwt_extended import jwt_required, get_jwt
 from bson.objectid import ObjectId
@@ -61,18 +61,20 @@ class PublicationRouteHandler(MethodView):
 
     @jwt_required(optional = False)
     @validate_logged_in_user
+    @validate_logged_in_admin
     def delete(self, _id):
         logged_in_user = get_jwt()
-        if logged_in_user['role'] == 'admin':
-            Publication.delete_by_id(_id)
-        elif logged_in_user['role'] == 'user':
+        #if logged_in_user['role'] == 'admin':
+        #    Publication.delete_by_id(_id)
+        if logged_in_user['role'] == 'user':
             Publication.delete_by_id_and_owner(_id, logged_in_user)
-
+        Publication.delete_by_id(_id)
         return ""
 
 
     @jwt_required(optional = False)
     @validate_logged_in_user
+    @validate_logged_in_admin
     def patch(self, _id):
         logged_in_user = get_jwt()
         publication = Publication.get_by_id(_id)
@@ -146,14 +148,27 @@ class PublicationCommentsRouteHandler(MethodView):
 
 class PublicationCommentRouteHandler(MethodView):
     @jwt_required()
+    @validate_logged_in_user
+    #@validate_logged_in_admin
     def delete(self, _id, comment_id):
+        logged_in_user = get_jwt()
+        if logged_in_user['role'] == 'user':
+            Comment.delete_by_id_and_owner(comment_id, logged_in_user)
         Comment.delete_by_id(comment_id)
         return ""
 
     @jwt_required()
+    @validate_logged_in_user
+    #@validate_logged_in_admin
     def patch(self, _id, comment_id):
+        logged_in_user = get_jwt()
+        comment = Comment.get_comment_by_publication_id_and_comment_id(_id, comment_id).to_json()
         request_body = request.get_json()
         if request_body and 'body' in request_body:
-            comment = Comment.update_by_id(comment_id, request_body['body'])
-            return jsonify(comment=comment.to_json())
+            if logged_in_user['sub'] == comment['owner'] or logged_in_user['role'] == 'admin':
+                comment = Comment.update_by_id(comment_id, request_body['body'])
+                return jsonify(comment=comment.to_json())
+            else:
+                raise ValidationError(message='comment not found')
         raise ValidationError(message='body is required')
+        

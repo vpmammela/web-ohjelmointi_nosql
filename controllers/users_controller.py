@@ -24,7 +24,7 @@ class UserRouteHandler(MethodView):
         return jsonify(user = user.to_json())
 
     @jwt_required()
-    #@validate_logged_in_admin
+    @validate_logged_in_admin
     def delete(self, _id):
         User.delete_by_id(_id)
         return ""

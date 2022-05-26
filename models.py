@@ -20,6 +20,13 @@ class Comment:
             _id = str(_id)
         self._id = _id
 
+
+    @staticmethod
+    def delete_by_id_and_owner(comment_id, logged_in_user):
+        result = db.comments.delete_one({'_id': ObjectId(comment_id), 'owner': ObjectId(logged_in_user['sub'])})
+        if result.deleted_count == 0:
+            raise NotFound(message = 'comment not found')
+
     @staticmethod
     def update_by_id(_comment_id, body):
         _filter = {'_id': ObjectId(_comment_id)}
@@ -74,13 +81,6 @@ class Comment:
         comment = db.comments.find_one({'publication': ObjectId(publication_id), '_id': ObjectId(comment_id)})
         return Comment(comment['body'], comment['owner'], comment['publication'])
 
-    def update(self):
-        # kirjoita tähän koodi, joka tallentaa päivitetyn kommentin selfin kautta db.comments.update_one-funktiota käyttäen
-        pass
-    
-    def delete(self):
-        # kirjoita tähän koodi, joka poistaa valitun kommentin
-        pass
 
 class User:
     def __init__(self, username, password = None, role = 'user', _id = None, profile_picture = None):
